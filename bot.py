@@ -1,6 +1,6 @@
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, CallbackContext
 import sqlite3
 import random
 from dotenv import load_dotenv
@@ -17,8 +17,7 @@ ADMIN_ID = os.getenv("ADMIN_ID")
 # Соединяемся с базой данных SQLite
 conn = sqlite3.connect('legendary_empire.db', check_same_thread=False)
 cursor = conn.cursor()
-
-# Инициализируем таблицу пользователей
+ Инициализируем таблицу пользователей
 def init_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
@@ -59,7 +58,7 @@ def get_start_resources():
 # Основные команды и реакции бота
 
 # Начало игры (/start)
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     cursor.execute("SELECT COUNT(*) FROM users WHERE user_id=?", (user_id,))
     count = cursor.fetchone()[0]
@@ -71,7 +70,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Добро пожаловать в легендарную империю!\nНачнем приключение?", reply_markup=markup)
 
 # Выбор игрового имени
-async def set_nickname(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def set_nickname(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     nickname = update.message.text.strip()
     if len(nickname) < 2 or len(nickname) > 15:
@@ -82,7 +81,7 @@ async def set_nickname(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"Приветствуем тебя, {nickname}, начинай исследовать мир!")
 
 # Отображаем карту
-async def show_map(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def show_map(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     map_state = load_map_state(user_id)
     if not map_state:
@@ -99,7 +98,7 @@ async def show_map(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Это твоя карта 🗺️. Нажми на клетку, чтобы сделать ход.", reply_markup=reply_markup)
 
 # Обрабатываем выбор клетки на карте
-async def select_cell(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def select_cell(update: Update, context: CallbackContext):
     query = update.callback_query
     user_id = query.from_user.id
     coords = query.data.split('_')[-1].split('-')
@@ -119,7 +118,7 @@ async def select_cell(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text(response)
 
 # Администрирование (показ статистики)
-async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def admin_stats(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     if str(user_id) != ADMIN_ID:
         await update.message.reply_text("Только администраторы имеют доступ.")
