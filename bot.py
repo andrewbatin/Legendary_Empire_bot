@@ -5,6 +5,7 @@ import sqlite3
 import random
 from dotenv import load_dotenv
 import os
+import asyncio  # Важно: добавьте этот импорт
 
 # Настройка логирования
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -17,6 +18,7 @@ ADMIN_ID = os.getenv("ADMIN_ID")
 # Соединяемся с базой данных SQLite
 conn = sqlite3.connect('legendary_empire.db', check_same_thread=False)
 cursor = conn.cursor()
+
 # Инициализируем таблицу пользователей
 def init_db():
     cursor.execute('''
@@ -144,4 +146,4 @@ async def main() -> None:
 
 if __name__ == '__main__':
     init_db()  # Инициализация базы данных перед запуском
-    asyncio.run(main())
+    asyncio.run(main())  # Правильно: добавили импорт asyncio
