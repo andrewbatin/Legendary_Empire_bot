@@ -17,7 +17,7 @@ ADMIN_ID = os.getenv("ADMIN_ID")
 # Соединяемся с базой данных SQLite
 conn = sqlite3.connect('legendary_empire.db', check_same_thread=False)
 cursor = conn.cursor()
- Инициализируем таблицу пользователей
+# Инициализируем таблицу пользователей
 def init_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
