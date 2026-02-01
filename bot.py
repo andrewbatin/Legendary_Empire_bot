@@ -5,7 +5,6 @@ import sqlite3
 import random
 from dotenv import load_dotenv
 import os
-import asyncio
 
 # Настройка логирования
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -130,13 +129,7 @@ async def admin_stats(update: Update, context: CallbackContext):
     await update.message.reply_text(f"Количество зарегистрированных пользователей: {total_users}")
 
 # Конструктор бота
-async def main() -> None:
-    # Создаем новый цикл событий
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    application = Application.builder().token(TOKEN).build()
-
+async def main(application: Application) -> None:
     # Командные хэндлеры
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, set_nickname))  # Установка имени
@@ -148,9 +141,7 @@ async def main() -> None:
     logger.info("Bot started successfully.")
     await application.run_polling()
 
-    # Закрываем цикл событий
-    loop.close()
-
 if __name__ == '__main__':
     init_db()  # Инициализация базы данных перед запуском
-    asyncio.run(main())  # Запускаем основную функцию
+    application = Application.builder().token(TOKEN).build()
+    asyncio.run(main(application))  # Передача существующего приложения
