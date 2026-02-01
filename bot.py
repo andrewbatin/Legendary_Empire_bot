@@ -1,12 +1,18 @@
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ConversationHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
 import sqlite3
 import random
+from dotenv import load_dotenv
+import os
 
 # Настройка логирования
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+load_dotenv()
+TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_ID = os.getenv("ADMIN_ID")
 
 # Соединяемся с базой данных SQLite
 conn = sqlite3.connect('legendary_empire.db', check_same_thread=False)
@@ -29,7 +35,7 @@ def init_db():
     ''')
     conn.commit()
 
-# Генерируем уникальную карту
+# Генерация уникальной карты
 def generate_map():
     tiles = ['🌳', '🏜️', '🏔️', '🌋', '🌊', '🌱']  # Элементы карты
     size = 10
@@ -53,30 +59,30 @@ def get_start_resources():
 # Основные команды и реакции бота
 
 # Начало игры (/start)
-def start(update: Update, context: CallbackContext):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     cursor.execute("SELECT COUNT(*) FROM users WHERE user_id=?", (user_id,))
     count = cursor.fetchone()[0]
     if count > 0:
-        update.message.reply_text("Вы уже зарегистрированы!")
+        await update.message.reply_text("Вы уже зарегистрированы!")
     else:
         buttons = [[InlineKeyboardButton("Начать ⭐", callback_data="start_game")]]
         markup = InlineKeyboardMarkup(buttons)
-        update.message.reply_text("Добро пожаловать в легендарную империю!\nНачнем приключение?", reply_markup=markup)
+        await update.message.reply_text("Добро пожаловать в легендарную империю!\nНачнем приключение?", reply_markup=markup)
 
 # Выбор игрового имени
-def set_nickname(update: Update, context: CallbackContext):
+async def set_nickname(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     nickname = update.message.text.strip()
     if len(nickname) < 2 or len(nickname) > 15:
-        update.message.reply_text("Имя должно быть длиной от 2 до 15 символов. Повторите попытку.")
+        await update.message.reply_text("Имя должно быть длиной от 2 до 15 символов. Повторите попытку.")
         return
     cursor.execute("UPDATE users SET nickname=? WHERE user_id=?", (nickname, user_id))
     conn.commit()
-    update.message.reply_text(f"Приветствуем тебя, {nickname}, начинай исследовать мир!")
+    await update.message.reply_text(f"Приветствуем тебя, {nickname}, начинай исследовать мир!")
 
 # Отображаем карту
-def show_map(update: Update, context: CallbackContext):
+async def show_map(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     map_state = load_map_state(user_id)
     if not map_state:
@@ -90,10 +96,10 @@ def show_map(update: Update, context: CallbackContext):
             row_buttons.append(InlineKeyboardButton(button_text, callback_data=f'cell_{button_text}'))
         keyboard.append(row_buttons)
     reply_markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text("Это твоя карта 🗺️. Нажми на клетку, чтобы сделать ход.", reply_markup=reply_markup)
+    await update.message.reply_text("Это твоя карта 🗺️. Нажми на клетку, чтобы сделать ход.", reply_markup=reply_markup)
 
 # Обрабатываем выбор клетки на карте
-def select_cell(update: Update, context: CallbackContext):
+async def select_cell(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
     coords = query.data.split('_')[-1].split('-')
@@ -109,37 +115,34 @@ def select_cell(update: Update, context: CallbackContext):
         '🌱': "Вас съел маленький росток 🌱."
     }
     response = results.get(terrain_type, "Что-то пошло не так 😕")
-    query.answer(response)
-    query.edit_message_text(response)
+    await query.answer(response)
+    await query.edit_message_text(response)
 
 # Администрирование (показ статистики)
-def admin_stats(update: Update, context: CallbackContext):
+async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    if user_id != 8304713213:  # Замените YOUR_ADMIN_USER_ID вашим настоящим ID
-        update.message.reply_text("Только администраторы имеют доступ.")
+    if str(user_id) != ADMIN_ID:
+        await update.message.reply_text("Только администраторы имеют доступ.")
         return
     cursor.execute("SELECT COUNT(*) FROM users")
     total_users = cursor.fetchone()[0]
-    update.message.reply_text(f"Количество зарегистрированных пользователей: {total_users}")
+    await update.message.reply_text(f"Количество зарегистрированных пользователей: {total_users}")
 
 # Конструктор бота
-def main():
-    TOKEN = "8066566128:AAGu7ipZd21dF7Bpqw7w6N8YuDWzRDbhL14"  # Здесь вставьте токен вашего бота
-    updater = Updater(token=TOKEN, use_context=True)
-    dp = updater.dispatcher
+async def main() -> None:
+    application = Application.builder().token(TOKEN).build()
 
     # Командные хэндлеры
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(MessageHandler(Filters.text & (~Filters.command), set_nickname))  # Установка имени
-    dp.add_handler(CommandHandler("show_map", show_map))  # Показать карту
-    dp.add_handler(CallbackQueryHandler(select_cell, pattern=r'^cell_[0-9]+-[0-9]+$'))  # Обработка выбора клетки
-    dp.add_handler(CommandHandler("stats", admin_stats))  # Статистика для администратора
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, set_nickname))  # Установка имени
+    application.add_handler(CommandHandler("show_map", show_map))  # Показать карту
+    application.add_handler(CallbackQueryHandler(select_cell, pattern=r'^cell_[0-9]+-[0-9]+$'))  # Обработка выбора клетки
+    application.add_handler(CommandHandler("stats", admin_stats))  # Статистика для администратора
 
     # Логирование и запуск
     logger.info("Bot started successfully.")
-    updater.start_polling()
-    updater.idle()
+    await application.run_polling()
 
 if __name__ == '__main__':
     init_db()  # Инициализация базы данных перед запуском
-    main()
+    asyncio.run(main())
