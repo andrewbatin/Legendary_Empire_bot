@@ -12,5 +12,5 @@ RUN pip install --upgrade pip && \
 # Копируем весь исходный код внутрь контейнера
 COPY . .
 
-EXPOSE 8080
+# Запускаем бота
 CMD ["python", "bot.py"]
