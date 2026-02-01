@@ -5,6 +5,7 @@ import sqlite3
 import random
 from dotenv import load_dotenv
 import os
+import asyncio
 
 # Настройка логирования
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
